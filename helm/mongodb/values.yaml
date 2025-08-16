@@ -1,0 +1,36 @@
+mongodb:
+  image:
+    registry: docker.io
+    repository: bitnami/mongodb
+    tag: "5.0"
+    pullPolicy: IfNotPresent
+  
+  auth:
+    enabled: true
+    rootUser: "root"
+    rootPassword: ""  # This will be auto-generated
+    usernames: ["appuser"]
+    passwords: [""]   # This will be auto-generated
+    databases: ["appdb"]
+  
+  architecture: standalone
+  
+  service:
+    type: ClusterIP
+    ports:
+      mongodb: 27017
+  
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: ""
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+namespace: mongo-vault-operator

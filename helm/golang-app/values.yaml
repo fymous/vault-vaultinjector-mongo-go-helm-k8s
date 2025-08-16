@@ -1,0 +1,53 @@
+replicaCount: 1
+
+image:
+  repository: golang-app
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "golang-app"
+  vault.hashicorp.com/agent-inject-secret-mongo: "secrets/mongo"
+  vault.hashicorp.com/agent-inject-template-mongo: |
+    {{- with secret "secrets/mongo" -}}
+    export MONGO_USER="{{ .Data.data.username }}"
+    export MONGO_PASSWORD="{{ .Data.data.password }}"
+    {{- end -}}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+
+resources: {}
+
+autoscaling:
+  enabled: false
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+vault:
+  enabled: true
+  secretPath: "secrets/mongo"
+  role: "golang-app"
+
+namespace: mongo-vault-operator

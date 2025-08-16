@@ -1,0 +1,6 @@
+apiVersion: v2
+name: golang-app
+description: A Helm chart for Golang application with Vault secret injection
+type: application
+version: 0.1.0
+appVersion: "1.0"
