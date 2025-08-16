@@ -1,8 +1,9 @@
 mongodb:
+  architecture: standalone
   image:
     registry: docker.io
     repository: bitnami/mongodb
-    tag: "5.0"
+    tag: latest
     pullPolicy: IfNotPresent
   
   auth:
@@ -12,9 +13,7 @@ mongodb:
     usernames: ["appuser"]
     passwords: [""]   # This will be auto-generated
     databases: ["appdb"]
-  
-  architecture: standalone
-  
+    
   service:
     type: ClusterIP
     ports:

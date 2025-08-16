@@ -8,19 +8,7 @@ echo "Starting deployment of all services..."
 # Single namespace for all services
 NAMESPACE="mongo-vault-operator"
 
-# Function to check if namespace exists
-check_namespace() {
-    local ns=$1
-    if kubectl get namespace "$ns" >/dev/null 2>&1; then
-        echo "Namespace $ns already exists"
-    else
-        echo "Creating namespace $ns"
-        kubectl create namespace "$ns"
-    fi
-}
 
-# Create the main namespace
-check_namespace "$NAMESPACE"
 
 echo "Deployment script is working!"
 
@@ -36,24 +24,35 @@ cd go-app
 docker build -t golang-app:latest .
 cd ..
 
-# Deploy MongoDB
-echo "Deploying MongoDB..."
-helm dependency update helm/mongodb
-helm upgrade --install mongodb helm/mongodb --namespace "$NAMESPACE"
 
-echo "MongoDB deployment initiated!"
+# Create namespace first
+kubectl create namespace "$NAMESPACE" || echo "Namespace already exists"
 
-# Deploy Vault
+# Deploy Vault 
 echo "Deploying Vault..."
 helm dependency update helm/vault
 helm upgrade --install vault helm/vault --namespace "$NAMESPACE"
-
 echo "Vault deployment initiated!"
+
+# Wait for Vault to be ready
+echo "Waiting for Vault to be ready..."
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault --timeout=300s -n "$NAMESPACE"
+
+# Configure Vault automatically
+echo "Configuring Vault..."
+kubectl apply -f vault-config-job.yaml
+kubectl wait --for=condition=complete job/vault-config --timeout=300s -n "$NAMESPACE"
+echo "Vault configuration completed!"
+
+# Deploy MongoDB (after Helm creates namespace)
+echo "MongoDB deployment initiated!"
+echo "Deploying MongoDB (ARM64 custom manifest)..."
+kubectl apply -f k8s-mongo-arm64.yaml
+echo "MongoDB deployment initiated!"
 
 # Deploy Golang application
 echo "Deploying Golang application..."
-helm upgrade --install golang-app helm/golang-app --namespace "$NAMESPACE"
-
+helm template golang-app helm/golang-app --namespace "$NAMESPACE" | kubectl apply -f -
 echo "All services deployment completed!"
 echo ""
 echo "Check pod status:"

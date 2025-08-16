@@ -49,5 +49,3 @@ vault:
   enabled: true
   secretPath: "secrets/mongo"
   role: "golang-app"
-
-namespace: mongo-vault-operator

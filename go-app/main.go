@@ -39,7 +39,7 @@ func readVaultSecrets() (string, string, error) {
 	secretsFile := "/vault/secrets/mongo"
 	if file, err := os.Open(secretsFile); err == nil {
 		defer file.Close()
-		
+
 		var mongoUser, mongoPassword string
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
@@ -50,20 +50,20 @@ func readVaultSecrets() (string, string, error) {
 				mongoPassword = strings.Trim(strings.TrimPrefix(line, "export MONGO_PASSWORD="), `"`)
 			}
 		}
-		
+
 		if mongoUser != "" && mongoPassword != "" {
 			return mongoUser, mongoPassword, nil
 		}
 	}
-	
+
 	// Fallback to environment variables
 	mongoUser := os.Getenv("MONGO_USER")
 	mongoPassword := os.Getenv("MONGO_PASSWORD")
-	
+
 	if mongoUser == "" || mongoPassword == "" {
 		return "", "", fmt.Errorf("MongoDB credentials not found in Vault secrets file or environment variables")
 	}
-	
+
 	return mongoUser, mongoPassword, nil
 }
 
@@ -77,8 +77,8 @@ func (a *App) connectToMongoDB() error {
 	log.Printf("Successfully read credentials from Vault - User: %s, Password: %s", mongoUser, "***hidden***")
 
 	// MongoDB connection string
-	mongoURI := fmt.Sprintf("mongodb://%s:%s@mongodb.mongo-vault-operator.svc.cluster.local:27017/appdb", mongoUser, mongoPassword)
-	
+	mongoURI := fmt.Sprintf("mongodb://%s:%s@mongo-arm64.mongo-vault-operator.svc.cluster.local:27017/appdb?authSource=admin", mongoUser, mongoPassword)
+
 	// Set client options
 	clientOptions := options.Client().ApplyURI(mongoURI)
 
@@ -99,7 +99,7 @@ func (a *App) connectToMongoDB() error {
 
 	a.client = client
 	a.db = client.Database("appdb")
-	
+
 	log.Println("Connected to MongoDB successfully!")
 	return nil
 }
@@ -190,7 +190,7 @@ func main() {
 
 	// Setup routes
 	r := mux.NewRouter()
-	
+
 	// API routes
 	r.HandleFunc("/api/users", app.createUser).Methods("POST")
 	r.HandleFunc("/api/users", app.getUsers).Methods("GET")

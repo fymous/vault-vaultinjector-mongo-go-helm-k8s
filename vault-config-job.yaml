@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-config
+  namespace: mongo-vault-operator
+spec:
+  template:
+    spec:
+      serviceAccountName: vault-config
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-config
+        image: hashicorp/vault:1.14.0
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault.mongo-vault-operator.svc:8200"
+        - name: VAULT_TOKEN
+          value: "root-token"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Wait for Vault to be ready
+          until vault status; do
+            echo "Waiting for Vault to be ready..."
+            sleep 5
+          done
+          
+          # Enable Kubernetes authentication
+          vault auth enable kubernetes || echo "Kubernetes auth already enabled"
+          
+          # Configure Kubernetes authentication
+          vault write auth/kubernetes/config \
+            token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+            kubernetes_host="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT" \
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          
+          # Enable KV secrets engine
+          vault secrets enable -path=secrets kv-v2 || echo "KV secrets already enabled"
+          
+          # Create MongoDB secret
+          vault kv put secrets/mongo username="root" password="example"
+          
+          # Create policy for golang-app
+          vault policy write golang-app - <<EOF
+          path "secrets/data/mongo" {
+            capabilities = ["read"]
+          }
+          EOF
+          
+          # Create Kubernetes role
+          vault write auth/kubernetes/role/golang-app \
+            bound_service_account_names=golang-app \
+            bound_service_account_namespaces=mongo-vault-operator \
+            policies=golang-app \
+            ttl=24h
+          
+          echo "Vault configuration completed successfully!"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-config
+  namespace: mongo-vault-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-config
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: vault-config
+  namespace: mongo-vault-operator
